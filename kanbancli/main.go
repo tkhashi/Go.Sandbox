@@ -39,6 +39,14 @@ type Task struct {
 	description string
 }
 
+func (t *Task) Next() {
+	if t.status == done {
+		t.status = todo
+	} else {
+		t.status++
+	}
+}
+
 // implement the list. Item interface
 func (t Task) FilterValue() string {
 	return t.title
@@ -63,6 +71,23 @@ type Model struct {
 
 func New() *Model {
 	return &Model{}
+}
+
+func (m *Model) MoveToNext() tea.Msg {
+	selectedItem := m.lists[m.forcused].SelectedItem()
+	selectedTask := selectedItem.(Task)
+
+	m.lists[selectedTask.status].
+		RemoveItem(m.lists[m.forcused].Index())
+	selectedTask.
+		Next()
+	m.lists[selectedTask.status].
+		InsertItem(
+			len(m.lists[selectedTask.status].Items()) - 1,
+			list.Item(selectedTask),
+		)
+
+	return nil
 }
 
 func (m *Model) Next() {
@@ -133,6 +158,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Prev()
 		case "right", "l":
 			m.Next()
+		case "enter":
+			return m, m.MoveToNext
 		}
 	}
 	var cmd tea.Cmd
