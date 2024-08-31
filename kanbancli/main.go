@@ -6,9 +6,12 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type status int
+
+const divisor = 4
 
 const (
 	todo status = iota
@@ -36,25 +39,46 @@ func (t Task) Description() string {
 	return t.description
 }
 
+// MANI MODEL
+type Model struct {
+	forcused status
+	lists []list.Model
+	err  error
+	loaded bool
+}
+
 func New() *Model {
 	return &Model{}
 }
 
-// MANI MODEL
-type Model struct {
-	list list.Model
-	err  error
-}
-
 // TODO: call thi on tea.WindowSizeMsg
 func (m *Model) initList(width, height int) {
-	m.list = list.New([]list.Item{}, list.NewDefaultDelegate(), width, height)
-	m.list.Title = "To Do"
-	m.list.SetItems([]list.Item{
+	defaultList := list.New([]list.Item{}, list.NewDefaultDelegate(), width/divisor, height)
+	defaultList.SetShowHelp(false)
+	m.lists = []list.Model{defaultList, defaultList, defaultList}
+
+	// Init To Do
+	m.lists[todo].Title = "To Do"
+	m.lists[todo].SetItems([]list.Item{
 		Task{status: todo, title: "buy milk", description: "strawberyry milk"},
 		Task{status: todo, title: "eat sushi", description: "negitoro roll, miso soup"},
 		Task{status: todo, title: "fold laundry", description: "or wear wrinkly clothes"},
 	})
+
+	// Init InProgress
+	m.lists[inProgress].Title = "In Progress"
+	m.lists[inProgress].SetItems([]list.Item{
+		Task{status: todo, title: "stay cool", description: "as as cucumber"},
+	})
+
+	// Init done
+	m.lists[done].Title = "Done"
+	m.lists[done].SetItems([]list.Item{
+		Task{status: todo, title: "write code", description: "don't worry wrriten in go"},
+	})
+
+
+
 }
 
 func (m Model) Init() tea.Cmd {
@@ -64,16 +88,29 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.initList(msg.Width, msg.Height)
+		if !m.loaded {
+			m.initList(msg.Width, msg.Height)
+			m.loaded = true
+		}
 	}
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.lists[New().forcused], cmd = m.lists[m.forcused].Update(msg)
 
 	return m, cmd
 }
 
 func (m Model) View() string {
-	return m.list.View()
+	if m.loaded {
+		return lipgloss.JoinHorizontal(
+			lipgloss.Left,
+			m.lists[todo].View(),
+			m.lists[inProgress].View(),
+			m.lists[done].View(),
+		)
+	} else {
+		return "loading.."
+	}
+	//return m.lists[m.forcused].View()
 }
 
 func main() {
