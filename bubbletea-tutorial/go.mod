@@ -2,10 +2,7 @@ module bubbletea-tutorial
 
 go 1.23.0
 
-require (
-	github.com/charmbracelet/bubbles v0.20.0
-	github.com/charmbracelet/bubbletea v1.1.1
-)
+require github.com/charmbracelet/bubbletea v1.1.1
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
