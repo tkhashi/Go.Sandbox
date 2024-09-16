@@ -7,9 +7,6 @@ import (
 	"os"
 )
 
-func main() {
-}
-
 // 現在のパスを返す
 func getCurrentPath() string {
 	pwd, err := os.Getwd()
