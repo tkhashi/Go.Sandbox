@@ -5,17 +5,14 @@ import (
 	"os"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type errMsg error
 
 type model struct {
-	nodes    []Noder
 	err      error
-	spinner  spinner.Model
+	nodes    []Noder
 	quitting bool
 }
 
@@ -25,10 +22,6 @@ var quitKeys = key.NewBinding(
 )
 
 func initialModel() model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
 	dir, err := os.Getwd() // カレントディレクトリ情報取得
 	if err != nil {
 		return model{err: err}
@@ -45,11 +38,10 @@ func initialModel() model {
 		}
 	}
 
-	return model{spinner: s, nodes: nodes}
+	return model{nodes: nodes}
 }
 
 func (m model) Init() tea.Cmd {
-	// return m.spinner.Tick
 	return nil
 }
 
@@ -69,7 +61,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	default:
 		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 	}
 }
@@ -78,7 +69,6 @@ func (m model) View() string {
 	if m.err != nil {
 		return m.err.Error()
 	}
-	// str := fmt.Sprintf("\n\n   %s Loading forever... %s\n\n", m.spinner.View(), quitKeys.Help().Desc)
 	var str string
 	for _, n := range m.nodes {
 		str = str + n.GetName() + "\n"
