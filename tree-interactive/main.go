@@ -1,9 +1,8 @@
 package main
 
 import (
-	"io/fs"
+	"fmt"
 	"os"
-	"path/filepath"
 
 	gotree "github.com/disiqueira/gotree"
 )
@@ -16,31 +15,34 @@ type File struct {
 	path string
 }
 
-func GetChildren(root string, tree gotree.Tree) (gotree.Tree, error) {
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		tree.Add(path)
-		return nil
-	})
+func GetChildren(tree gotree.Tree) (gotree.Tree, error) {
+	composite, err := os.ReadDir(tree.Text())
 	if err != nil {
 		return nil, err
+	}
+
+	for _, de := range composite {
+		leaf := tree.Add(de.Name())
+
+		_, err := GetChildren(leaf)
+		if err != nil {
+			continue
+		}
 	}
 
 	return tree, nil
 }
 
 func main() {
-	root, err := os.Getwd()
+	rootPath, err := os.Getwd()
 	if err != nil {
 		return
 	}
 
-	tree := gotree.New(root)
+	tree, err := GetChildren(gotree.New(rootPath))
+	if err != nil {
+		print("Invalid error ", err)
+	}
 
-	children, err := GetChildren(root, tree)
-
-	println(children.Print())
+	fmt.Println(tree.Print())
 }
