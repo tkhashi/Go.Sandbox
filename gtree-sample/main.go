@@ -27,7 +27,8 @@ func main() {
 
 		for i, s := range splited {
 			if root == nil {
-				root = gtree.NewRoot(s)
+				// root = gtree.NewRoot(s)
+				root = gtree.NewRoot(".")
 				node = root
 				continue
 			}
