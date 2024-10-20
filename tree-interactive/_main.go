@@ -1,4 +1,4 @@
-package main
+package _main
 
 import (
 	"fmt"
@@ -6,38 +6,6 @@ import (
 
 	gotree "github.com/disiqueira/gotree"
 )
-
-type node struct {
-	value string
-	path  string
-	nodes []node
-}
-
-func newNode(value string, path string, nodes []node) node {
-	return node{
-		value: value,
-		path:  path,
-		nodes: nodes,
-	}
-}
-
-func 
-
-// parameter: ディレクトリNode
-// return: 子どもNodes
-func (n *node) GetChildren() ([]node, error) {
-	composite, err := os.ReadDir(n.path)
-	if err != nil {
-		return nil, err
-	}
-
-	var nodes []node
-	for _, f := range composite {
-		nodes = append(nodes, newNode(f.Name(), f.Name(), nil))
-	}
-
-	return nodes, nil
-}
 
 func GetChildren(tree gotree.Tree) (gotree.Tree, error) {
 	composite, err := os.ReadDir(tree.Text())
