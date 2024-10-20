@@ -8,9 +8,9 @@ import (
 )
 
 type model struct {
+	selected map[int]struct{}
 	choices  []string
 	cursor   int
-	selected map[int]struct{}
 }
 
 func initialModel() model {
