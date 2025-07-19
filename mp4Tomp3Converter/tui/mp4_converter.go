@@ -66,15 +66,17 @@ type ConversionJob struct {
 
 // Model 全体のアプリケーションモデル
 type Model struct {
-	state        AppState
-	filepicker   filepicker.Model
-	selectedPath string
-	jobs         []ConversionJob
-	current      int
-	progress     progress.Model
-	spinner      spinner.Model
-	err          error
-	mp4Count     int
+	state          AppState
+	filepicker     filepicker.Model
+	selectedPath   string
+	jobs           []ConversionJob
+	current        int
+	progress       progress.Model
+	spinner        spinner.Model
+	err            error
+	mp4Count       int
+	completedCount int // 完了したジョブ数
+	maxConcurrent  int // 最大並列数
 }
 
 // メッセージ定義
@@ -120,10 +122,11 @@ func initialModel() Model {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	return Model{
-		state:      StateSelectingFolder,
-		filepicker: fp,
-		progress:   p,
-		spinner:    s,
+		state:         StateSelectingFolder,
+		filepicker:    fp,
+		progress:      p,
+		spinner:       s,
+		maxConcurrent: 3, // 3つまで並列実行
 	}
 }
 
@@ -312,9 +315,10 @@ func (m Model) updateConversion(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = StateConverting  // 状態遷移を追加
 		m.jobs = msg.jobs
 		m.current = 0
+		m.completedCount = 0
 		return m, tea.Batch(
 			m.spinner.Tick,
-			m.convertNext(),
+			m.startParallelConversion(),
 		)
 
 	case tea.KeyMsg:
@@ -329,8 +333,13 @@ func (m Model) updateConversion(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.jobs[msg.index].Status = "completed"
 		}
-		m.current++
-		return m, m.convertNext()
+		m.completedCount++
+		
+		// 全て完了したかチェック
+		if m.completedCount >= len(m.jobs) {
+			m.state = StateDone
+		}
+		return m, nil
 
 	case AllDoneMsg:
 		m.state = StateDone
@@ -360,6 +369,31 @@ func (m Model) convertNext() tea.Cmd {
 		err := convertMP4ToMP3(job.InputPath, job.OutputPath)
 		return JobDoneMsg{index: m.current, err: err}
 	})
+}
+
+// startParallelConversion 並列変換を開始
+func (m Model) startParallelConversion() tea.Cmd {
+	var cmds []tea.Cmd
+	
+	// セマフォを使用して並列数を制限
+	sem := make(chan struct{}, m.maxConcurrent)
+	
+	for i, job := range m.jobs {
+		index := i // クロージャ問題を回避
+		currentJob := job
+		
+		cmds = append(cmds, tea.Cmd(func() tea.Msg {
+			// セマフォを取得
+			sem <- struct{}{}
+			defer func() { <-sem }() // セマフォを解放
+			
+			// 変換実行
+			err := convertMP4ToMP3(currentJob.InputPath, currentJob.OutputPath)
+			return JobDoneMsg{index: index, err: err}
+		}))
+	}
+	
+	return tea.Batch(cmds...)
 }
 
 func (m Model) updateDone(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -455,24 +489,29 @@ func (m Model) conversionView() string {
 	s.WriteString(titleStyle.Render("🎵 Converting MP4 to MP3"))
 	s.WriteString("\n\n")
 
-	// 進捗表示
-	percent := float64(m.current) / float64(len(m.jobs))
+	// 進捗表示（完了数ベース）
+	percent := float64(m.completedCount) / float64(len(m.jobs))
 	s.WriteString(fmt.Sprintf("Progress: %s %d/%d\n\n",
 		m.progress.ViewAs(percent),
-		m.current,
+		m.completedCount,
 		len(m.jobs)))
 
-	// 現在の処理
-	if m.current < len(m.jobs) {
-		currentFile := filepath.Base(m.jobs[m.current].InputPath)
-		s.WriteString(fmt.Sprintf("%s Converting: %s\n\n",
+	// 並列処理中のメッセージ
+	running := 0
+	for _, job := range m.jobs {
+		if job.Status == "pending" {
+			running++
+		}
+	}
+	
+	if running > 0 {
+		s.WriteString(fmt.Sprintf("%s Converting %d files in parallel...\n\n",
 			m.spinner.View(),
-			infoStyle.Render(currentFile)))
+			min(running, m.maxConcurrent)))
 	}
 
-	// 完了したジョブ
-	for i := 0; i < m.current && i < len(m.jobs); i++ {
-		job := m.jobs[i]
+	// 完了したジョブの表示
+	for i, job := range m.jobs {
 		filename := filepath.Base(job.InputPath)
 
 		if job.Status == "completed" {
@@ -488,6 +527,14 @@ func (m Model) conversionView() string {
 	s.WriteString(subtleStyle.Render("Press 'q' to quit"))
 
 	return s.String()
+}
+
+// min ヘルパー関数
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (m Model) doneView() string {
