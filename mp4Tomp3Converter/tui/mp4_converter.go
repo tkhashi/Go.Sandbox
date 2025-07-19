@@ -70,7 +70,6 @@ type Model struct {
 	filepicker     filepicker.Model
 	selectedPath   string
 	jobs           []ConversionJob
-	current        int
 	progress       progress.Model
 	spinner        spinner.Model
 	err            error
@@ -211,13 +210,13 @@ func (m Model) updateFolderSelection(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case DirectoryChangedMsg:
-		// ファイルピッカーのディレクトリを変更
-		m.filepicker.CurrentDirectory = msg.path
-		// ファイルピッカーを再読み込み
-		return m, tea.Batch(
-			m.filepicker.Init(),
-			func() tea.Msg { return nil }, // ダミーメッセージでView更新をトリガー
-		)
+		// ディレクトリが変更された場合のみファイルピッカーを更新
+		if msg.path != m.filepicker.CurrentDirectory {
+			m.filepicker.CurrentDirectory = msg.path
+			// ファイルピッカーを再初期化して新しいディレクトリの内容を読み込む
+			return m, m.filepicker.Init()
+		}
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -245,7 +244,8 @@ func (m Model) navigateToParent() tea.Cmd {
 		if parentDir != m.filepicker.CurrentDirectory { // 既にルートでない場合
 			return DirectoryChangedMsg{path: parentDir}
 		}
-		return nil
+		// ルートディレクトリの場合は何もしない（空のメッセージでなく明示的にnil以外を返す）
+		return DirectoryChangedMsg{path: m.filepicker.CurrentDirectory}
 	}
 }
 
@@ -282,12 +282,12 @@ func (m Model) updateConfirmation(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	case ConversionStartMsg:
-		// 変換開始メッセージも処理
+		// 変換開始メッセージを処理
 		m.jobs = msg.jobs
-		m.current = 0
+		m.completedCount = 0
 		return m, tea.Batch(
 			m.spinner.Tick,
-			m.convertNext(),
+			m.startParallelConversion(),
 		)
 	}
 	return m, nil
@@ -340,7 +340,6 @@ func (m Model) updateConversion(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ConversionStartMsg:
 		m.state = StateConverting  // 状態遷移を追加
 		m.jobs = msg.jobs
-		m.current = 0
 		m.completedCount = 0
 		return m, tea.Batch(
 			m.spinner.Tick,
@@ -367,10 +366,6 @@ func (m Model) updateConversion(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case AllDoneMsg:
-		m.state = StateDone
-		return m, nil
-
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -385,19 +380,6 @@ func (m Model) updateConversion(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) convertNext() tea.Cmd {
-	if m.current >= len(m.jobs) {
-		return func() tea.Msg { return AllDoneMsg{} }
-	}
-
-	job := m.jobs[m.current]
-	return tea.Cmd(func() tea.Msg {
-		err := convertMP4ToMP3(job.InputPath, job.OutputPath)
-		return JobDoneMsg{index: m.current, err: err}
-	})
-}
-
-// startParallelConversion 並列変換を開始
 func (m Model) startParallelConversion() tea.Cmd {
 	var cmds []tea.Cmd
 	
@@ -453,46 +435,24 @@ func (m Model) View() string {
 func (m Model) folderSelectionView() string {
 	var s strings.Builder
 
-	// 上部にマージンを追加
-	s.WriteString("\n")
 	s.WriteString(titleStyle.Render("🎵 MP4 to MP3 Converter"))
 	s.WriteString("\n")
 	s.WriteString(headerStyle.Render("Select a folder containing MP4 files:"))
 	
-	// 現在のパス表示を強化
+	// 現在のパス表示（簡潔に）
 	currentPath := m.filepicker.CurrentDirectory
 	displayPath := currentPath
-	if len(currentPath) > 70 {
-		displayPath = "..." + currentPath[len(currentPath)-67:]
+	if len(currentPath) > 60 {
+		displayPath = "..." + currentPath[len(currentPath)-57:]
 	}
-	
-	// パスの情報をより詳細に表示
-	s.WriteString(fmt.Sprintf("\n📍 Current: %s", infoStyle.Render(displayPath)))
-	
-	// 実行時ディレクトリも表示
-	if m.initialDir != currentPath {
-		initialDisplayPath := m.initialDir
-		if len(m.initialDir) > 50 {
-			initialDisplayPath = "..." + m.initialDir[len(m.initialDir)-47:]
-		}
-		s.WriteString(fmt.Sprintf("\n🏠 Initial: %s", subtleStyle.Render(initialDisplayPath)))
-	}
-	
-	// MP4ファイル数を事前表示
-	if mp4Files, err := findMP4Files(currentPath); err == nil && len(mp4Files) > 0 {
-		s.WriteString(fmt.Sprintf("\n🎬 MP4 files here: %s", successStyle.Render(fmt.Sprintf("%d", len(mp4Files)))))
-	}
+	s.WriteString(fmt.Sprintf("\n📍 %s", infoStyle.Render(displayPath)))
 	
 	s.WriteString("\n\n")
-
 	s.WriteString(m.filepicker.View())
 	s.WriteString("\n")
 
-	// 拡張されたヘルプメッセージ
-	helpText := strings.Join([]string{
-		"Navigate: ↑/↓ • Enter folder: →/l/Enter • Back: ←/h • Select current: Space",
-		"Shortcuts: ~ (Home) • / (Root) • . (Initial Dir) • p (Parent) • Quit: q/Ctrl+C",
-	}, "\n")
+	// ヘルプメッセージを1行に簡略化
+	helpText := "Navigate: ↑/↓ • Enter: →/Enter • Back: ←/h • Select: Space • Quit: q"
 	s.WriteString(helpStyle.Render(helpText))
 
 	return s.String()
@@ -543,18 +503,9 @@ func (m Model) conversionView() string {
 		m.completedCount,
 		len(m.jobs)))
 
-	// 並列処理中のメッセージ
-	running := 0
-	for _, job := range m.jobs {
-		if job.Status == "pending" {
-			running++
-		}
-	}
-	
-	if running > 0 {
-		s.WriteString(fmt.Sprintf("%s Converting %d files in parallel...\n\n",
-			m.spinner.View(),
-			min(running, m.maxConcurrent)))
+	// スピナー表示（進行中の場合のみ）
+	if m.completedCount < len(m.jobs) {
+		s.WriteString(fmt.Sprintf("%s Converting files...\n\n", m.spinner.View()))
 	}
 
 	// 完了したジョブの表示
@@ -576,13 +527,7 @@ func (m Model) conversionView() string {
 	return s.String()
 }
 
-// min ヘルパー関数
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+// min ヘルパー関数は不要になったため削除
 
 func (m Model) doneView() string {
 	var s strings.Builder
@@ -716,7 +661,6 @@ func runDirectMode(directory string) error {
 	model := Model{
 		state:   StateConverting,
 		jobs:    jobs,
-		current: 0,
 		progress: progress.New(
 			progress.WithDefaultGradient(),
 			progress.WithWidth(40),
