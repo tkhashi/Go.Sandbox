@@ -77,6 +77,7 @@ type Model struct {
 	mp4Count       int
 	completedCount int // 完了したジョブ数
 	maxConcurrent  int // 最大並列数
+	initialDir     string // 実行時のディレクトリ
 }
 
 // メッセージ定義
@@ -101,13 +102,16 @@ type DirectoryChangedMsg struct {
 }
 
 func initialModel() Model {
+	// 実行時のディレクトリを保存
+	initialDir, _ := os.Getwd()
+	
 	// ファイルピッカーの設定
 	fp := filepicker.New()
 	fp.AllowedTypes = []string{} // すべてのファイル・フォルダを表示
-	fp.CurrentDirectory, _ = os.Getwd()
+	fp.CurrentDirectory = initialDir
 	fp.ShowHidden = false
 	fp.DirAllowed = true
-	fp.FileAllowed = false // フォルダのみ選択可能
+	fp.FileAllowed = true // ファイルも表示する
 
 	// プログレスバーの設定
 	p := progress.New(
@@ -127,6 +131,7 @@ func initialModel() Model {
 		progress:      p,
 		spinner:       s,
 		maxConcurrent: 3, // 3つまで並列実行
+		initialDir:    initialDir,
 	}
 }
 
@@ -167,13 +172,25 @@ func (m Model) updateFolderSelection(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "enter":
-			// 現在のディレクトリを選択して確認画面へ
-			return m, m.checkMP4Files(m.filepicker.CurrentDirectory)
+			// 選択されたフォルダに入るか、現在のディレクトリを選択
+			selectedPath := m.filepicker.Path
+			if selectedPath != "" {
+				if info, err := os.Stat(selectedPath); err == nil && info.IsDir() {
+					// ディレクトリの場合は入る
+					return m, m.navigateToDirectory(selectedPath)
+				}
+			} else {
+				// 何も選択されていない場合は現在のディレクトリを選択
+				return m, m.checkMP4Files(m.filepicker.CurrentDirectory)
+			}
 		case "space":
 			// 現在のディレクトリを選択
 			if m.filepicker.CurrentDirectory != "" {
 				return m, m.checkMP4Files(m.filepicker.CurrentDirectory)
 			}
+		case "p":
+			// 親ディレクトリに移動（追加ショートカット）
+			return m, m.navigateToParent()
 		case "~":
 			// ホームディレクトリに移動
 			if homeDir, err := os.UserHomeDir(); err == nil {
@@ -182,6 +199,9 @@ func (m Model) updateFolderSelection(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "/":
 			// ルートディレクトリに移動
 			return m, m.navigateToDirectory("/")
+		case ".":
+			// 実行時のディレクトリに移動
+			return m, m.navigateToDirectory(m.initialDir)
 		}
 
 	case FolderSelectedMsg:
@@ -205,8 +225,14 @@ func (m Model) updateFolderSelection(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// ディレクトリが選択された場合
 	if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			return m, m.navigateToDirectory(path)
+		if info, err := os.Stat(path); err == nil {
+			if info.IsDir() {
+				// ディレクトリの場合は入る
+				return m, m.navigateToDirectory(path)
+			} else {
+				// ファイルの場合は何もしない（または親ディレクトリを選択）
+				return m, m.checkMP4Files(m.filepicker.CurrentDirectory)
+			}
 		}
 	}
 
@@ -427,24 +453,45 @@ func (m Model) View() string {
 func (m Model) folderSelectionView() string {
 	var s strings.Builder
 
+	// 上部にマージンを追加
+	s.WriteString("\n")
 	s.WriteString(titleStyle.Render("🎵 MP4 to MP3 Converter"))
 	s.WriteString("\n")
 	s.WriteString(headerStyle.Render("Select a folder containing MP4 files:"))
 	
-	// 現在のパス表示
+	// 現在のパス表示を強化
 	currentPath := m.filepicker.CurrentDirectory
-	if len(currentPath) > 60 {
-		currentPath = "..." + currentPath[len(currentPath)-57:]
+	displayPath := currentPath
+	if len(currentPath) > 70 {
+		displayPath = "..." + currentPath[len(currentPath)-67:]
 	}
-	s.WriteString(fmt.Sprintf("\n📍 %s\n\n", infoStyle.Render(currentPath)))
+	
+	// パスの情報をより詳細に表示
+	s.WriteString(fmt.Sprintf("\n📍 Current: %s", infoStyle.Render(displayPath)))
+	
+	// 実行時ディレクトリも表示
+	if m.initialDir != currentPath {
+		initialDisplayPath := m.initialDir
+		if len(m.initialDir) > 50 {
+			initialDisplayPath = "..." + m.initialDir[len(m.initialDir)-47:]
+		}
+		s.WriteString(fmt.Sprintf("\n🏠 Initial: %s", subtleStyle.Render(initialDisplayPath)))
+	}
+	
+	// MP4ファイル数を事前表示
+	if mp4Files, err := findMP4Files(currentPath); err == nil && len(mp4Files) > 0 {
+		s.WriteString(fmt.Sprintf("\n🎬 MP4 files here: %s", successStyle.Render(fmt.Sprintf("%d", len(mp4Files)))))
+	}
+	
+	s.WriteString("\n\n")
 
 	s.WriteString(m.filepicker.View())
 	s.WriteString("\n")
 
 	// 拡張されたヘルプメッセージ
 	helpText := strings.Join([]string{
-		"Navigate: ↑/↓ • Enter folder: →/l • Back: ←/h • Select current: Enter/Space",
-		"Shortcuts: ~ (Home) • / (Root) • Quit: q/Ctrl+C",
+		"Navigate: ↑/↓ • Enter folder: →/l/Enter • Back: ←/h • Select current: Space",
+		"Shortcuts: ~ (Home) • / (Root) • . (Initial Dir) • p (Parent) • Quit: q/Ctrl+C",
 	}, "\n")
 	s.WriteString(helpStyle.Render(helpText))
 
@@ -511,7 +558,7 @@ func (m Model) conversionView() string {
 	}
 
 	// 完了したジョブの表示
-	for i, job := range m.jobs {
+	for _, job := range m.jobs {
 		filename := filepath.Base(job.InputPath)
 
 		if job.Status == "completed" {
