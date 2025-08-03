@@ -1,0 +1,471 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+#App {
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.ffmpeg-warning {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Section */
+.section {
+    padding: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.section h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #4a5568;
+}
+
+/* Folder Selection */
+.folder-selection {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.selected-folder {
+    flex: 1;
+    padding: 12px 16px;
+    background: #f7fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+}
+
+.folder-path {
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.placeholder {
+    color: #a0aec0;
+    font-style: italic;
+}
+
+.file-count {
+    margin-top: 10px;
+}
+
+.count {
+    background: #e6fffa;
+    color: #234e52;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: none;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-convert {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    font-size: 1.2rem;
+    padding: 16px 32px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn-convert:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(72, 187, 120, 0.3);
+}
+
+/* Settings */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-item label {
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.9rem;
+}
+
+.setting-item select {
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.setting-item select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Progress */
+.progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.overall-progress {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f7fafc;
+    border-radius: 12px;
+}
+
+.overall-progress label {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 80px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    transition: width 0.3s ease;
+    border-radius: 6px;
+}
+
+.progress-text {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 45px;
+    text-align: right;
+}
+
+/* File Progress */
+.file-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.file-progress-item {
+    padding: 15px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #fed7e2;
+    color: #97266d;
+}
+
+.status-converting {
+    background: #feebc8;
+    color: #c05621;
+}
+
+.status-completed {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.status-failed {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.file-progress {
+    margin-bottom: 8px;
+}
+
+.file-progress-item .progress-bar {
+    height: 8px;
+}
+
+.file-progress-item .progress-text {
+    font-size: 0.9rem;
+}
+
+/* Log */
+.log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    background: #1a202c;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.log-empty {
+    color: #a0aec0;
+    text-align: center;
+    font-style: italic;
+    padding: 20px;
+}
+
+.log-item {
+    color: #e2e8f0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 5px;
+    padding: 2px 0;
+}
+
+.log-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Scrollbar styling */
+.log-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: #2d3748;
+    border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #App {
+        padding: 10px;
+    }
+    
+    .container {
+        border-radius: 12px;
+    }
+    
+    .header {
+        padding: 20px;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .section {
+        padding: 20px;
+    }
+    
+    .folder-selection {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .overall-progress {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .overall-progress label {
+        min-width: auto;
+    }
+}
+
+.input-box .input:hover {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+.input-box .input:focus {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+/* Drag and Drop Styles */
+.dragging {
+    pointer-events: none;
+}
+
+.drop-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(102, 126, 234, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.drop-message {
+    text-align: center;
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 16px;
+    border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+.drop-message h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.drop-message p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* File List Styles */
+.file-list {
+    margin-top: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.file-item {
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    color: #555;
+    border-left: 3px solid #667eea;
+}
+
+.file-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Drag hover effect for the entire app */
+#App.dragging .container {
+    transform: scale(0.98);
+    transition: transform 0.2s ease;
+}
