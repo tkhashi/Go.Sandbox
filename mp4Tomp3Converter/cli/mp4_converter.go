@@ -253,23 +253,37 @@ func runConversion(directory string) error {
 		return fmt.Errorf("ffmpeg not found. Please install ffmpeg first")
 	}
 
-	// 入力ディレクトリの確認
-	if _, err := os.Stat(directory); os.IsNotExist(err) {
-		return fmt.Errorf("directory does not exist: %s", directory)
+	// 入力パスの確認
+	info, err := os.Stat(directory)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("path does not exist: %s", directory)
 	}
-
-	// MP4ファイルの検索
-	mp4Files, err := findMP4Files(directory)
 	if err != nil {
-		return fmt.Errorf("error finding MP4 files: %w", err)
+		return fmt.Errorf("error accessing path: %w", err)
 	}
 
-	if len(mp4Files) == 0 {
-		return fmt.Errorf("no MP4 files found in directory: %s", directory)
+	var mp4Files []string
+	baseDir := directory
+	if info.IsDir() {
+		// MP4ファイルの検索
+		mp4Files, err = findMP4Files(directory)
+		if err != nil {
+			return fmt.Errorf("error finding MP4 files: %w", err)
+		}
+		if len(mp4Files) == 0 {
+			return fmt.Errorf("no MP4 files found in directory: %s", directory)
+		}
+	} else {
+		// 単一ファイル指定
+		if strings.ToLower(filepath.Ext(directory)) != ".mp4" {
+			return fmt.Errorf("not an MP4 file: %s", directory)
+		}
+		mp4Files = []string{directory}
+		baseDir = filepath.Dir(directory)
 	}
 
 	// outputディレクトリの作成
-	outputDir := filepath.Join(directory, "output")
+	outputDir := filepath.Join(baseDir, "output")
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
@@ -299,7 +313,7 @@ func runConversion(directory string) error {
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "mp4converter [directory]",
+		Use:   "mp4converter [directory|file.mp4]",
 		Short: "Convert MP4 files to MP3 (optimized for meeting recordings)",
 		Long: `A beautiful CLI tool to convert MP4 files to MP3 format.
 Optimized for meeting recordings with lightweight settings:

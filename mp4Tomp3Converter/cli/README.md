@@ -28,22 +28,28 @@
    ```
 
 ## 使用方法
-1. 変換したいMP4ファイルが含まれるディレクトリを指定して実行します。
+1. 変換したいMP4ファイルが含まれるディレクトリ、またはMP4ファイルのパスを指定して実行します。
    ```bash
-   go run mp4_converter.go [directory]
+   go run mp4_converter.go [directory|file.mp4]
    ```
    例:
    ```bash
+   # ディレクトリ内のMP4をすべて変換（サブディレクトリも対象）
    go run mp4_converter.go ./videos
+
+   # 単一のMP4ファイルを変換
+   go run mp4_converter.go ./videos/meeting.mp4
    ```
-2. 変換されたMP3ファイルは、指定したディレクトリ内の`output`フォルダに保存されます。
+2. 変換されたMP3ファイルは、`output`フォルダに保存されます。
+   - ディレクトリ指定: 指定したディレクトリ直下の`output`
+   - ファイル指定: そのファイルがあるディレクトリ直下の`output`
 
 ## コマンド
 - **変換**
   ```bash
-  mp4converter [directory]
+  mp4converter [directory|file.mp4]
   ```
-  指定したディレクトリ内のMP4ファイルをMP3に変換します。
+  指定したディレクトリ内のMP4ファイル、または指定したMP4ファイルをMP3に変換します。
 
 - **バージョン情報**
   ```bash
@@ -54,6 +60,7 @@
 ## 注意事項
 - FFmpegがインストールされていない場合、ツールは動作しません。インストール方法については[こちら](https://ffmpeg.org/download.html)を参照してください。
 - 入力ディレクトリにMP4ファイルが存在しない場合、エラーが発生します。
+- ファイルを指定する場合、拡張子が`.mp4`以外だとエラーになります。
 
 ## FFmpegのインストール方法
 
