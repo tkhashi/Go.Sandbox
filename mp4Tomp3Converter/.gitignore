@@ -1,3 +1,5 @@
 # Build artifacts
 cli/mp4_converter
+cli/mp4converter
 tui/mp4_converter
+tui/mp4converter

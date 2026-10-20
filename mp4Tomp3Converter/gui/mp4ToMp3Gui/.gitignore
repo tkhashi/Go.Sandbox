@@ -19,6 +19,11 @@
 *.out
 build/bin
 
+# FFmpeg binaries (fetch with scripts/download-ffmpeg.sh)
+# .gitkeep keeps `//go:embed resources/bin/*` matching at least one file
+resources/bin/*
+!resources/bin/.gitkeep
+
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
